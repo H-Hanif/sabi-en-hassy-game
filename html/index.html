@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Street Fighter Pro</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #000;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: 'Arial', sans-serif;
+    }
+
+    canvas {
+      border: 2px solid #fff;
+      display: none;
+    }
+
+    #homeScreen,
+    #introScreen,
+    #characterSelection,
+    #controlsMenu {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #homeScreen h1,
+    #introScreen h1,
+    #characterSelection h1,
+    #controlsMenu h1 {
+      margin-bottom: 20px;
+    }
+
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #controlsMenu button {
+      margin: 10px;
+    }
+
+    #gameCanvas {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="homeScreen">
+    <h1>Street Fighter Pro</h1>
+    <button onclick="showIntro()">Start Game</button>
+  </div>
+
+  <div id="introScreen" style="display: none;">
+    <h1>Introduction</h1>
+    <p>Welcome to Street Fighter Pro!</p>
+    <p>Controls:</p>
+    <ul>
+      <li>Move Left: Left Arrow</li>
+      <li>Move Right: Right Arrow</li>
+      <li>Jump: Up Arrow</li>
+      <li>Block: B</li>
+      <li>Punch: P</li>
+      <li>Kick: K</li>
+      <li>Special Move: QCF (Quarter-Circle-Forward) + Punch</li>
+    </ul>
+    <button onclick="selectCharacterScreen()">Select Your Character</button>
+  </div>
+
+  <div id="characterSelection" style="display: none;">
+    <h1>Choose Your Character</h1>
+    <button onclick="selectCharacter('topG')">Top G</button>
+    <button onclick="selectCharacter('dolceNoepie')">Dolce Noepie</button>
+    <button onclick="selectCharacter('jhonnyAhoy')">Jhonny Ahoy</button>
+  </div>
+
+  <div id="controlsMenu" style="display: none;">
+    <h1>Controls Menu</h1>
+    <button onclick="changeKeyBindings()">Change Key Bindings</button>
+    <button onclick="selectCharacterScreen()">Change Your Character</button>
+    <button onclick="resumeGame()">Resume Game</button>
+  </div>
+
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let currentPlayer;
+    let opponent;
+    let gameInterval;
+
+    const characters = {
+      topG: {
+        name: 'Top G',
+        color: 'blue',
+        x: 50,
+        y: canvas.height - 120,
+        width: 80,
+        height: 80,
+        health: 100,
+        isBlocking: false,
+        comboCount: 0,
+        currentFrame: 0,
+        frames: {
+          idle: [/* ... */],
+          walk: [/* ... */],
+          punch: [/* ... */],
+          kick: [/* ... */],
+          // Add frames for other animations
+        },
+        currentAnimation: 'idle',
+      },
+      dolceNoepie: {
+        name: 'Dolce Noepie',
+        color: 'red',
+        x: canvas.width - 130,
+        y: canvas.height - 120,
+        width: 80,
+        height: 80,
+        health: 100,
+        isBlocking: false,
+        comboCount: 0,
+        currentFrame: 0,
+        frames: {
+          idle: [/* ... */],
+          walk: [/* ... */],
+          punch: [/* ... */],
+          kick: [/* ... */],
+          // Add frames for other animations
+        },
+        currentAnimation: 'idle',
+      },
+      jhonnyAhoy: {
+        name: 'Jhonny Ahoy',
+        color: 'yellow',
+        x: canvas.width / 2 - 40,
+        y: canvas.height - 120,
+        width: 80,
+        height: 80,
+        health: 100,
+        isBlocking: false,
+        comboCount: 0,
+        currentFrame: 0,
+        frames: {
+          idle: [/* ... */],
+          walk: [/* ... */],
+          punch: [/* ... */],
+          kick: [/* ... */],
+          // Add frames for other animations
+        },
+        currentAnimation: 'idle',
+      },
+    };
+
+    // Load sprite sheets for each character (replace with your actual paths)
+    characters.topG.frames.idle = loadFrames('html/images/topG_idle.gif', 8, 1);
+    characters.topG.frames.walk = loadFrames('html/images/topG_walk.gif', 8, 1);
+    characters.topG.frames.punch = loadFrames('html/images/topG_punch.GIF', 8, 1);
+    characters.topG.frames.kick = loadFrames('html/images/topG_kick.GIF', 8, 1);
+
+    characters.dolceNoepie.frames.idle = loadFrames('images/dolceNoepie_idle.png', 8, 1);
+    characters.dolceNoepie.frames.walk = loadFrames('images/dolceNoepie_walk.png', 8, 1);
+    characters.dolceNoepie.frames.punch = loadFrames('images/dolceNoepie_punch.png', 8, 1);
+    characters.dolceNoepie.frames.kick = loadFrames('images/dolceNoepie_kick.png', 8, 1);
+
+    characters.jhonnyAhoy.frames.idle = loadFrames('images/jhonnyAhoy_idle.png', 8, 1);
+    characters.jhonnyAhoy.frames.walk = loadFrames('images/jhonnyAhoy_walk.png', 8, 1);
+    characters.jhonnyAhoy.frames.punch = loadFrames('images/jhonnyAhoy_punch.png', 8, 1);
+    characters.jhonnyAhoy.frames.kick = loadFrames('images/jhonnyAhoy_kick.png', 8, 1);
+
+
+    function loadFrames(path, frameCount, rowCount) {
+      const image = new Image();
+      image.src = path;
+      const frames = [];
+      let frameIndex = 0;
+
+      image.onload = function() {
+        const frameWidth = image.width / frameCount;
+        const frameHeight = image.height / rowCount;
+
+        for (let row = 0; row < rowCount; row++) {
+          for (let col = 0; col < frameCount; col++) {
+            frames[frameIndex] = {
+              x: col * frameWidth,
+              y: row * frameHeight,
+              width: frameWidth,
+              height: frameHeight,
+            };
+            frameIndex++;
+          }
+        }
+      };
+
+      return frames;
+    }
+
+    function showIntro() {
+      document.getElementById('homeScreen').style.display = 'none';
+      document.getElementById('introScreen').style.display = 'flex';
+    }
+
+    function selectCharacterScreen() {
+      document.getElementById('introScreen').style.display = 'none';
+      document.getElementById('characterSelection').style.display = 'flex';
+    }
+
+    function startGame() {
+      document.getElementById('homeScreen').style.display = 'none';
+      document.getElementById('characterSelection').style.display = 'flex';
+    }
+
+    function selectCharacter(character) {
+      currentPlayer = characters[character];
+      opponent = characters['dolceNoepie']; // Opponent can be dynamically chosen
+      document.getElementById('characterSelection').style.display = 'none';
+      document.getElementById('controlsMenu').style.display = 'flex';
+      canvas.style.display = 'block';
+      startGameLoop();
+    }
+
+    function startGameLoop() {
+      gameInterval = setInterval(updateGame, 100); // Adjust the interval as needed
+    }
+
+    function updateGame() {
+      clearCanvas();
+      drawCharacters();
+      handleInputs();
+      updateGameLogic();
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawCharacters() {
+      drawCharacter(currentPlayer);
+      drawCharacter(opponent);
+    }
+
+    function drawCharacter(character) {
+      const frame = character.frames[character.currentAnimation][character.currentFrame];
+      ctx.drawImage(
+        image,
+        frame.x,
+        frame.y,
+        frame.width,
+        frame.height,
+        character.x,
+        character.y,
+        character.width,
+        character.height
+      );
+      // Increment the frame index for the next iteration
+      character.currentFrame = (character.currentFrame + 1) % character.frames[character.currentAnimation].length;
+    }
+
+    function handleInputs() {
+      // Implement keyboard input handling for character movement, attacks, blocking, etc.
+      // For sprite-based animations, you'll need to change the current animation based on user input
+      // Example: If right arrow key is pressed, set currentAnimation to 'walk' for the player
+      if (isRightPressed()) {
+        currentPlayer.currentAnimation = 'walk';
+      } else {
+        currentPlayer.currentAnimation = 'idle';
+      }
+
+      // Example: Check for punch key and trigger the punch animation
+      if (isPunchPressed()) {
+        currentPlayer.currentAnimation = 'punch';
+        // Call the specialMove function for special moves
+        specialMove();
+      }
+
+      // Example: Check for blocking key
+      if (isBlockPressed()) {
+        currentPlayer.isBlocking = true;
+      } else {
+        currentPlayer.isBlocking = false;
+      }
+
+      // Add more input handling as needed
+    }
+
+    function updateGameLogic() {
+      // Implement game logic, collision detection, health management, etc.
+      // For sprite-based animations, the animation frames are handled in the drawCharacter function
+      // Add logic for health reduction, combo counting, etc.
+
+      // Example: If player is blocking, reduce damage
+      if (currentPlayer.isBlocking) {
+        currentPlayer.health -= 1;
+      } else {
+        // Example: If player is not blocking, reduce health faster
+        currentPlayer.health -= 2;
+      }
+
+      // Check for winning conditions, round reset, etc.
+
+      // Add more game logic as needed
+    }
+
+    function specialMove() {
+      // Implement unique special moves for each player
+      // Triggered by specific key combinations (e.g., quarter-circle-forward + punch)
+      // Example: Check if the key combination is pressed
+      if (isQuarterCircleForward() && isPunchPressed()) {
+        // Execute special move logic
+        console.log(`${currentPlayer.name} performs a special move!`);
+        // Play sound effect
+        playSoundEffect(comboSound);
+      }
+    }
+
+    function playSoundEffect(sound) {
+      // Implement logic to play sound effects
+      sound.play();
+    }
+
+    function isQuarterCircleForward() {
+      // Implement logic to check for quarter-circle-forward input
+      return false;
+    }
+
+    function isRightPressed() {
+      // Implement logic to check if the right arrow key is pressed
+      return false;
+    }
+
+    function isPunchPressed() {
+      // Implement logic to check if the punch key is pressed
+      return false;
+    }
+
+    function isBlockPressed() {
+      // Implement logic to check if the block key is pressed
+      return false;
+    }
+
+
+    function showIntro() {
+      document.getElementById('homeScreen').style.display = 'none';
+      document.getElementById('introScreen').style.display = 'flex';
+    }
+
+    function selectCharacterScreen() {
+      document.getElementById('introScreen').style.display = 'none';
+      document.getElementById('characterSelection').style.display = 'flex';
+    }
+
+    function startGame() {
+      document.getElementById('homeScreen').style.display = 'none';
+      document.getElementById('characterSelection').style.display = 'flex';
+    }
+
+    function selectCharacter(character) {
+      currentPlayer = characters[character];
+      opponent = characters['dolceNoepie']; // Opponent can be dynamically chosen
+      document.getElementById('characterSelection').style.display = 'none';
+      document.getElementById('controlsMenu').style.display = 'flex';
+      canvas.style.display = 'block';
+      startGameLoop();
+    }
+
+    function startGameLoop() {
+      gameInterval = setInterval(updateGame, 16); // Adjust the interval as needed
+    }
+
+    function updateGame() {
+      clearCanvas();
+      drawCharacters();
+      handleInputs();
+      updateGameLogic();
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawCharacters() {
+      drawCharacter(currentPlayer);
+      drawCharacter(opponent);
+    }
+
+    function drawCharacter(character) {
+      ctx.fillStyle = character.color;
+      ctx.fillRect(character.x, character.y, character.width, character.height);
+      // Add more character drawing logic (animations, etc.)
+    }
+
+    function handleInputs() {
+      // Implement keyboard input handling for character movement, attacks, blocking, etc.
+    }
+
+    function updateGameLogic() {
+      // Implement game logic, collision detection, health management, etc.
+
+      // Example: Check if a combo is executed
+      if (currentPlayer.comboCount >= 3) {
+        executeComboAttack();
+        currentPlayer.comboCount = 0; // Reset combo count after executing a combo
+      }
+    }
+
+    function executeComboAttack() {
+      // Implement logic for a powerful combo attack
+      console.log(`${currentPlayer.name} executes a combo attack!`);
+    }
+
+    // Add more game functions as needed
+
+    // Example: Function to pause the game
+    function pauseGame() {
+      clearInterval(gameInterval);
+      // Show pause menu, update UI, etc.
+    }
+
+    // Example: Function to resume the game
+    function resumeGame() {
+      startGameLoop();
+      // Hide pause menu, update UI, etc.
+    }
+
+    // Example: Function to handle key bindings
+    function changeKeyBindings() {
+      // Implement key binding change functionality
+      alert('Key bindings changed!');
+    }
+
+    // Example: Function to change character during the game
+    function changeCharacter() {
+      // Implement character change functionality
+      selectCharacterScreen();
+    }
+
+    // Add event listeners for keyboard inputs, such as arrow keys, punches, kicks, etc.
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+
+    function handleKeyDown(event) {
+      // Implement keydown handling
+    }
+
+    function handleKeyUp(event) {
+      // Implement keyup handling
+    }
+  </script>
+</body>
+</html>

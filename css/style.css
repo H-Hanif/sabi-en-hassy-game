@@ -1,0 +1,46 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: 'Arial', sans-serif;
+  }
+  
+  canvas {
+    border: 2px solid #fff;
+    display: none;
+  }
+  
+  #homeScreen,
+  #introScreen,
+  #characterSelection,
+  #controlsMenu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  #homeScreen h1,
+  #introScreen h1,
+  #characterSelection h1,
+  #controlsMenu h1 {
+    margin-bottom: 20px;
+  }
+  
+  button {
+    margin: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  
+  #gameCanvas {
+    display: none;
+  }
+  
+  /* Add additional styling for specific elements and screens as needed */
+  
